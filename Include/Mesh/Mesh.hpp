@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Common/Common.hpp"
+#include "../Shader/Shader.hpp"
 
 class Mesh{
 private:
