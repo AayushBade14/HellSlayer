@@ -2,6 +2,7 @@
 
 #define GLM_ENABLE_EXPERIMENTAL
 
+#include <glad/glad.h>
 #include <assimp/scene.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
