@@ -72,7 +72,7 @@ void scroll_callback(GLFWwindow* window,double xoffset,double yoffset){
     fov = 45.0f;
 }
 
-void processInput(GLFWwindow* window){
+void ProcessInput(GLFWwindow* window){
   if(glfwGetKey(window,GLFW_KEY_ESCAPE)==GLFW_PRESS)
     glfwSetWindowShouldClose(window,true);
 
@@ -136,6 +136,8 @@ int main(void){
     float currentFrame = (float)glfwGetTime();
     dt = currentFrame - lastFrame;
     lastFrame = currentFrame;
+    
+    ProcessInput(window);
 
     glClearColor(0.0f,0.0f,0.0f,1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
