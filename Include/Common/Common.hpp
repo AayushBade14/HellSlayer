@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <filesystem>
 #include "../ThirdParty/STB_IMAGE/stb_image.h"
 
 #define MAX_BONE_INFLUENCE 4
@@ -62,5 +63,11 @@ struct AssimpNodeData{
 
 // for model loading
 std::vector<Texture> LoadMaterialTexture(const aiMaterial* material,aiTextureType type,const std::string& typeName, const std::string& directory);
-
 void LoadTextureFromFile(Texture& texture,const std::string& directory);
+
+
+// glm helpers
+glm::vec3 getGLMVec(const aiVector3D& v);
+glm::vec2 getGLMVec(const aiVector2D& v);
+glm::quat getGLMQuat(const aiQuaternion& q);
+glm::mat4 getGLMMat(const aiMatrix4x4& from);

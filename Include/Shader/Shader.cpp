@@ -4,14 +4,14 @@ Shader::Shader(const std::string& vertexPath,const std::string& fragmentPath){
   std::string vertexCode = LoadFile(vertexPath);
   std::string fragmentCode = LoadFile(fragmentPath);
 
-  unsigned int vertexShader = CompileShader(vertexCode);
-  unsigned int fragmentShader = CompileShader(fragmentCode);
+  unsigned int vertexShader = CompileShader(vertexCode,true);
+  unsigned int fragmentShader = CompileShader(fragmentCode,false);
 
   CreateShaderProgram(vertexShader,fragmentShader);
 }
 
 Shader::~Shader(){
-  glDeleteProgram(iD);
+  glDeleteProgram(id);
 }
 
 std::string Shader::LoadFile(const std::string& path){
@@ -26,11 +26,13 @@ std::string Shader::LoadFile(const std::string& path){
     file.close();
     code = stream.str();
   }
-
+  catch(const std::ifstream::failure& e){
+    std::cerr<<"ERROR: Loading shader file -> "<<path<<" ->"<<e.what()<<std::endl;
+  }
   return code;
 }
 
-unsigned int CompileShader(const std::string& srcCode,bool isVertex){
+unsigned int Shader::CompileShader(const std::string& srcCode,bool isVertex){
   const char* code = srcCode.c_str();
   int success;
   char infoLog[512];
@@ -48,18 +50,18 @@ unsigned int CompileShader(const std::string& srcCode,bool isVertex){
   return shader;
 }
 
-void CreateShaderProgram(unsigned int& vertexShader,unsigned int& fragmentShader){
+void Shader::CreateShaderProgram(unsigned int& vertexShader,unsigned int& fragmentShader){
   int success;
   char infoLog[512];
 
-  iD = glCreateProgram();
-  glAttachShader(iD,vertexShader);
-  glAttachShader(iD,fragmentShader);
-  glLinkProgram(iD);
+  id = glCreateProgram();
+  glAttachShader(id,vertexShader);
+  glAttachShader(id,fragmentShader);
+  glLinkProgram(id);
 
-  glGetProgramiv(iD,GL_LINK_STATUS,&success);
+  glGetProgramiv(id,GL_LINK_STATUS,&success);
   if(!success){
-    glGetProgramInfoLog(iD,512,NULL,infoLog);
+    glGetProgramInfoLog(id,512,NULL,infoLog);
     std::cerr<<"ERROR: creating shader program -> "<<infoLog<<std::endl;
     return;
   }
@@ -69,5 +71,5 @@ void CreateShaderProgram(unsigned int& vertexShader,unsigned int& fragmentShader
 }
 
 void Shader::Use(){
-  glUseProgram(iD);
+  glUseProgram(id);
 }

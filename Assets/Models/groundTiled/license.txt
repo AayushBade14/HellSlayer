@@ -1,0 +1,11 @@
+Model Information:
+* title:	Ground Bricks 02 Scan
+* source:	https://sketchfab.com/3d-models/ground-bricks-02-scan-327cd2b0aa7849048de7b01a61d5bc7b
+* author:	joeshu (https://sketchfab.com/joeshu)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Ground Bricks 02 Scan" (https://sketchfab.com/3d-models/ground-bricks-02-scan-327cd2b0aa7849048de7b01a61d5bc7b) by joeshu (https://sketchfab.com/joeshu) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

@@ -50,9 +50,9 @@ void Mesh::Draw(Shader& shader){
     std::string number;
 
     if(type == "texture_diffuse")
-      number = std::to_string(i);
+      number = std::to_string(diffuseNr++);
     else if(type == "texture_specular")
-      number = std::to_string(i);
+      number = std::to_string(specularNr++);
 
     type += number;
 

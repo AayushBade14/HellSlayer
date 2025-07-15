@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 
 #include "./Include/Shader/Shader.hpp"
+#include "./Include/Model/Model.hpp"
 
 #define WIDTH 1920.0f
 #define HEIGHT 1040.0f
@@ -116,12 +117,19 @@ int main(void){
 
   glfwMakeContextCurrent(window);
 
-  if(!gladLoadGLLoader((GLADloadProc)glfwGetProcAddress)){
+  if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)){
     std::cerr<<"ERROR: GLAD_INIT!"<<std::endl;
     glfwTerminate();
     glfwDestroyWindow(window);
     return -1;
   }
+    
+  Shader shader("./Assets/Shaders/vert.glsl","./Assets/Shaders/frag.glsl");
+  
+  Model player("./Assets/Models/surgeonModel/Ch16_nonPBR.dae");
+  Model eve("./Assets/Models/eve/Eve By J.Gonzales.dae");
+
+  Model ground("./Assets/Models/groundTiled/scene.gltf");
 
   glfwSetInputMode(window,GLFW_CURSOR,GLFW_CURSOR_DISABLED);
   glfwSetFramebufferSizeCallback(window,framebuffer_size_callback);
@@ -132,6 +140,8 @@ int main(void){
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
   
+  std::cout<<"NOW STARTING!!"<<std::endl;
+
   while(!glfwWindowShouldClose(window)){
     float currentFrame = (float)glfwGetTime();
     dt = currentFrame - lastFrame;
@@ -141,8 +151,35 @@ int main(void){
 
     glClearColor(0.0f,0.0f,0.0f,1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+    shader.Use();
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::scale(model,glm::vec3(0.008f));
+    glm::mat4 view = glm::lookAt(cameraPos,cameraPos+cameraFront,cameraUp);
+    glm::mat4 projection = glm::perspective(glm::radians(fov),WIDTH/HEIGHT,0.1f,1000.0f);
+    
+    shader.SetValue("model",model);
+    shader.SetValue("view",view);
+    shader.SetValue("projection",projection);
 
-    glfwPollEvents();
+    player.Draw(shader);
+    
+    model = glm::mat4(1.0f);
+    model = glm::translate(model,glm::vec3(3.0f,0.0f,0.0f));
+    model = glm::scale(model,glm::vec3(0.01f));
+
+    shader.SetValue("model",model);
+
+    eve.Draw(shader);
+
+    model = glm::mat4(1.0f);
+    model = glm::rotate(model,glm::radians(-90.0f),glm::vec3(1.0f,0.0f,0.0f));
+
+    shader.SetValue("model",model);
+
+    ground.Draw(shader);
+
+    glfwPollEvents(); 
     glfwSwapBuffers(window);
   }
 

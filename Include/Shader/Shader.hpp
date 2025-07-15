@@ -11,10 +11,10 @@
 
 class Shader{
 private:
-  unsigned int iD;
+  unsigned int id;
 
   std::string LoadFile(const std::string& path);
-  unsigned int CompileShader(const std::string& srcCode);
+  unsigned int CompileShader(const std::string& srcCode,bool isVertex);
   void CreateShaderProgram(unsigned int& vertexShader,unsigned int& fragmentShader);
 
 public:
@@ -25,7 +25,7 @@ public:
 
   template <typename T>
   void SetValue(const std::string& name,const T& value){
-    unsigned int loc = glGetUniformLocation(iD,name.c_str());
+    unsigned int loc = glGetUniformLocation(id,name.c_str());
     
     if constexpr(std::is_same_v<T,int>)
       glUniform1i(loc,value);

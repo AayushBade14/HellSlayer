@@ -50,3 +50,29 @@ void LoadTextureFromFile(Texture& texture,const std::string& directory){
   std::cout<<"TEXTURE: Loaded "<<texture.filename<<" successfully!"<<std::endl;
 }
 
+
+// glm helpers
+glm::vec3 getGLMVec(const aiVector3D& v){
+  return glm::vec3(v.x,v.y,v.z);
+}
+
+glm::vec2 getGLMVec(const aiVector2D& v){
+  return glm::vec2(v.x,v.y);
+}
+
+glm::quat getGLMQuat(const aiQuaternion& q){
+  return glm::quat(q.w,q.x,q.y,q.z);
+}
+
+glm::mat4 getGLMMat(const aiMatrix4x4& from){
+  glm::mat4 to;
+
+  to[0][0] = from.a1; to[0][1] = from.a2; to[0][2] = from.a3; to[0][3] = from.a4;
+  to[1][0] = from.b1; to[1][1] = from.b2; to[1][2] = from.b3; to[1][3] = from.b4;
+  to[2][0] = from.c1; to[2][1] = from.c2; to[2][2] = from.c3; to[2][3] = from.c4;
+  to[3][0] = from.d1; to[3][1] = from.d2; to[3][2] = from.d3; to[3][3] = from.d4;
+  
+  return to;
+
+}
+

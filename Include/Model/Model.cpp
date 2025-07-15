@@ -108,7 +108,7 @@ void Model::ExtractBoneData(std::vector<Vertex>& vertices,const aiMesh* mesh,con
       boneId = boneInfoMap[boneName].id; 
     }
 
-    std::vector<aiVertexWeight> weightsArray = mesh->mBones[boneIndex]->mWeights;
+    auto weightsArray = mesh->mBones[boneIndex]->mWeights;
     for(unsigned int weightIndex = 0; weightIndex < mesh->mBones[boneIndex]->mNumWeights; weightIndex++){
       int vertexId = weightsArray[weightIndex].mVertexId;
       float weight = weightsArray[weightIndex].mWeight;
