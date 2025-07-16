@@ -19,8 +19,11 @@ private:
 public:
   Animation(const std::string& path,Model& model);
   ~Animation() = default;
+  
+  Bone* FindBone(const std::string& boneName);
 
   float GetDuration() {return duration;}
   float GetTicksPerSecond() {return ticksPerSecond;}
+  AssimpNodeData& GetRootNode() {return rootNode;}
   std::map<std::string,BoneInfo>& GetAnimationBoneInfoMap() {return animationBoneInfoMap;}
 };

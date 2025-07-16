@@ -49,3 +49,21 @@ void Animation::ReadMissingBones(const aiAnimation* animation,Model& model){
 
   animationBoneInfoMap = modelBoneInfoMap;
 }
+
+Bone* FindBone(const std::string& boneName){
+  int index = -1;
+  std::cout<<"SIZE_OF_ANIMATION_BONES: "<<animationBones.size()<<std::endl;
+  for(unsigned int i = 0; i < animationBones.size(); i++){
+    if(animationBones[i].GetName() == boneName){
+      index = i;
+      break;
+    }
+  }
+  if(index == -1){
+    std::cerr<<"NO-BONE-FOUND -> "<<boneName<<std::endl;
+    return nullptr;
+  }
+  else{
+    return &animationBones[index];
+  }
+}
