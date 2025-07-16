@@ -12,10 +12,15 @@ private:
   AssimpNodeData rootNode;
   std::vector<Bone> animationBones;
   std::map<std::string,BoneInfo> animationBoneInfoMap;
+  
+  void ReadHierachy(AssimpNodeData& dest,const aiNode* node);
+  void ReadMissingBones(const aiAnimation* animation,Model& model);
 
 public:
   Animation(const std::string& path,Model& model);
   ~Animation() = default;
 
-
+  float GetDuration() {return duration;}
+  float GetTicksPerSecond() {return ticksPerSecond;}
+  std::map<std::string,BoneInfo>& GetAnimationBoneInfoMap() {return animationBoneInfoMap;}
 };

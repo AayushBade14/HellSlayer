@@ -23,4 +23,6 @@ public:
 
   void Draw(Shader& shader);
   
+  std::map<std::string,BoneInfo>& GetBoneInfoMap() {return boneInfoMap;}
+  int& GetBoneCounter() {return boneCount;}
 };
