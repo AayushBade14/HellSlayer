@@ -3,7 +3,7 @@
 Bone::Bone(const std::string& name, int id, const aiNodeAnim* channel){
   this->name = name;
   this->id = id;
-  
+  localTransform = glm::mat4(1.0f); 
   nposkey = channel->mNumPositionKeys;
   for(int i = 0; i < nposkey; i++){
     aiVectorKey key = channel->mPositionKeys[i];
@@ -108,5 +108,5 @@ glm::mat4 Bone::InterpolateScaling(float animTime){
 
   glm::vec3 finalScale = glm::mix(scalingKeys[p0].scale,scalingKeys[p1].scale,sf);
 
-  return glm::scale(glm::mat(1.0f),finalScale);
+  return glm::scale(glm::mat4(1.0f),finalScale);
 }

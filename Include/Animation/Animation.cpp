@@ -33,7 +33,7 @@ void Animation::ReadMissingBones(const aiAnimation* animation,Model& model){
   std::map<std::string,BoneInfo>& modelBoneInfoMap = model.GetBoneInfoMap();
   int& modelBoneCounter = model.GetBoneCounter();
 
-  for(unisgned int i = 0; i < animation->mNumChannels; i++){
+  for(unsigned int i = 0; i < animation->mNumChannels; i++){
     aiNodeAnim* channel = animation->mChannels[i];
 
     std::string boneName = channel->mNodeName.C_Str();
@@ -50,7 +50,7 @@ void Animation::ReadMissingBones(const aiAnimation* animation,Model& model){
   animationBoneInfoMap = modelBoneInfoMap;
 }
 
-Bone* FindBone(const std::string& boneName){
+Bone* Animation::FindBone(const std::string& boneName){
   int index = -1;
   std::cout<<"SIZE_OF_ANIMATION_BONES: "<<animationBones.size()<<std::endl;
   for(unsigned int i = 0; i < animationBones.size(); i++){
@@ -64,6 +64,6 @@ Bone* FindBone(const std::string& boneName){
     return nullptr;
   }
   else{
-    return &animationBones[index];
+    return &(animationBones[index]);
   }
 }

@@ -13,7 +13,7 @@ private:
   std::vector<Bone> animationBones;
   std::map<std::string,BoneInfo> animationBoneInfoMap;
   
-  void ReadHierachy(AssimpNodeData& dest,const aiNode* node);
+  void ReadHierarchy(AssimpNodeData& dest,const aiNode* node);
   void ReadMissingBones(const aiAnimation* animation,Model& model);
 
 public:

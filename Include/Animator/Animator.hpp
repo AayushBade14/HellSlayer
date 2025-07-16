@@ -12,7 +12,7 @@ private:
 
   void CalculateBoneTransforms(AssimpNodeData& node,glm::mat4 parentTransform);
 public:
-  Animator::Animator(Animation& animation);
+  Animator(Animation& animation);
   ~Animator() = default;
 
   void UpdateAnimation(float dt);

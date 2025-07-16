@@ -17,6 +17,9 @@ OBJS = ./Main.o \
 			 ./Include/Common/Common.o \
 			 ./Include/Mesh/Mesh.o \
 			 ./Include/Model/Model.o \
+			 ./Include/Bone/Bone.o \
+			 ./Include/Animation/Animation.o \
+			 ./Include/Animator/Animator.o \
 			 ./Include/ThirdParty/STB_IMAGE/stb_image.o \
 			 ./Include/ThirdParty/glad/glad.o
 

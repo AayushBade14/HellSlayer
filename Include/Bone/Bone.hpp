@@ -9,7 +9,7 @@ private:
   
   int nposkey;
   int nrotkey;
-  int scalekey;
+  int nscalekey;
 
   std::vector<PositionKey> positionKeys;
   std::vector<RotationKey> rotationKeys;

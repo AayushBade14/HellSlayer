@@ -40,8 +40,8 @@ void Animator::CalculateBoneTransforms(AssimpNodeData& node,glm::mat4 parentTran
   std::map<std::string,BoneInfo>& animationBoneInfoMap = currentAnimation->GetAnimationBoneInfoMap();
 
   if(animationBoneInfoMap.find(boneName) != animationBoneInfoMap.end()){
-    globalTransform *= animationBoneInfoMap[boneName].offsetMatrix;
-    skinnedMatrix[animationBoneInfoMap[boneName].id] = globalTransform;
+    //globalTransform *= animationBoneInfoMap[boneName].offsetMatrix;
+    skinnedMatrix[animationBoneInfoMap[boneName].id] = globalTransform * animationBoneInfoMap[boneName].offsetMatrix;
   }
   else{
     BoneInfo newBoneInfo;
@@ -50,7 +50,7 @@ void Animator::CalculateBoneTransforms(AssimpNodeData& node,glm::mat4 parentTran
     animationBoneInfoMap[boneName] = newBoneInfo;
   }
 
-  for(unsigned int i = 0; i < node.childrenCount; i++){
+  for(int i = 0; i < node.childrenCount; i++){
     CalculateBoneTransforms(node.children[i],globalTransform);
   }
 }
