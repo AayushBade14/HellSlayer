@@ -6,7 +6,7 @@ Model::Model(const std::string& path){
 
 void Model::LoadModel(const std::string& path){
   Assimp::Importer importer;
-  const aiScene* scene = importer.ReadFile(path.c_str(),aiProcess_Triangulate | aiProcess_GenNormals);
+  const aiScene* scene = importer.ReadFile(path.c_str(),aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_LimitBoneWeights | aiProcess_JoinIdenticalVertices);
   if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode){
     std::cerr<<"ERROR::ASSIMP: Loading model into assimp data-structures ->"<<importer.GetErrorString()<<" -> "<<path<<std::endl;
     return;
@@ -37,7 +37,7 @@ void Model::SetVertexBoneData(Vertex& vertex,int id,float weight){
   } 
 }
 
-void Model::ProcessNode(const aiNode* node,const aiScene* scene){
+void Model::ProcessNode(aiNode* node,const aiScene* scene){
   for(unsigned int meshIndex = 0; meshIndex < node->mNumMeshes; meshIndex++){
     aiMesh* mesh = scene->mMeshes[node->mMeshes[meshIndex]];
     meshes.push_back(ProcessMesh(mesh,scene));
@@ -48,7 +48,7 @@ void Model::ProcessNode(const aiNode* node,const aiScene* scene){
   }
 }
 
-Mesh Model::ProcessMesh(const aiMesh* mesh, const aiScene* scene){
+Mesh Model::ProcessMesh(aiMesh* mesh, const aiScene* scene){
   std::vector<Vertex> vertices;
   std::vector<unsigned int> indices;
   std::vector<Texture> textures;
@@ -90,7 +90,7 @@ Mesh Model::ProcessMesh(const aiMesh* mesh, const aiScene* scene){
   return Mesh(vertices,indices,textures);
 }
 
-void Model::ExtractBoneData(std::vector<Vertex>& vertices,const aiMesh* mesh,const aiScene* scene){
+void Model::ExtractBoneData(std::vector<Vertex>& vertices,aiMesh* mesh,const aiScene* scene){
   for(unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++){
     int boneId = -1;
     std::string boneName = mesh->mBones[boneIndex]->mName.C_Str();
@@ -107,11 +107,12 @@ void Model::ExtractBoneData(std::vector<Vertex>& vertices,const aiMesh* mesh,con
     else{
       boneId = boneInfoMap[boneName].id; 
     }
-
+    assert(boneId != -1);
     auto weightsArray = mesh->mBones[boneIndex]->mWeights;
     for(unsigned int weightIndex = 0; weightIndex < mesh->mBones[boneIndex]->mNumWeights; weightIndex++){
       int vertexId = weightsArray[weightIndex].mVertexId;
       float weight = weightsArray[weightIndex].mWeight;
+      assert(vertexId <= vertices.size());
       SetVertexBoneData(vertices[vertexId],boneId,weight);
     }
   }

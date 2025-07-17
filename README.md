@@ -1,18 +1,18 @@
 # **HellSlayer**
 > An Engine + Game Made From Scratch In OpenGL & C++
 
-![Screenshot of the current renderer](./Screenshots/hell1.jpg)
+![Screenshot of the current renderer with animation](./Screenshots/hell3.jpg)
 ![Screenshot in wireframe mode](./Screenshots/hell2.jpg)
 
 ## Current Features
 - A 3D renderer 
 - Supports multiple model loading
+- Supports skeletal animation (With GPU-Skinning)
 - A free-fly camera for navigating (WASD-keys)
 - [T] : To enter into wireframe mode
 - [Y] : To return into normal mode
 
 ## Future Development
-- Model animation with GPU-Skinning
 - Finite State Machine for character controller
 - Lighting (PHONG)
 

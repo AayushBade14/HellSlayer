@@ -3,6 +3,8 @@
 
 #include "./Include/Shader/Shader.hpp"
 #include "./Include/Model/Model.hpp"
+#include "./Include/Animation/Animation.hpp"
+#include "./Include/Animator/Animator.hpp"
 
 #define WIDTH 1920.0f
 #define HEIGHT 1040.0f
@@ -128,6 +130,9 @@ int main(void){
   
   Model player("./Assets/Models/surgeonModel/Ch16_nonPBR.dae");
   Model eve("./Assets/Models/eve/Eve By J.Gonzales.dae");
+  
+  Animation walkingAnimation("./Assets/Animations/Walking/Walking.dae",player);
+  Animator animator(walkingAnimation);
 
   Model ground("./Assets/Models/groundTiled/scene.gltf");
 
@@ -141,7 +146,7 @@ int main(void){
   glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
   
   std::cout<<"NOW STARTING!!"<<std::endl;
-
+  
   while(!glfwWindowShouldClose(window)){
     float currentFrame = (float)glfwGetTime();
     dt = currentFrame - lastFrame;
@@ -152,9 +157,16 @@ int main(void){
     glClearColor(0.0f,0.0f,0.0f,1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
+    animator.UpdateAnimation(dt);    
+    
     shader.Use();
+    
+    std::vector<glm::mat4> transforms = animator.GetSkinnedMatrix();
+    for(unsigned int i = 0; i < transforms.size(); i++){
+      shader.SetValue("finalBonesMatrices["+std::to_string(i)+"]",transforms[i]);
+    }
+
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::scale(model,glm::vec3(0.008f));
     glm::mat4 view = glm::lookAt(cameraPos,cameraPos+cameraFront,cameraUp);
     glm::mat4 projection = glm::perspective(glm::radians(fov),WIDTH/HEIGHT,0.1f,1000.0f);
     
