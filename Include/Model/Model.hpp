@@ -11,9 +11,9 @@ private:
   std::vector<Mesh> meshes;
 
   void LoadModel(const std::string& path);
-  void ProcessNode(const aiNode* node,const aiScene* scene);
-  Mesh ProcessMesh(const aiMesh* mesh,const aiScene* scene);
-  void ExtractBoneData(std::vector<Vertex>& vertices,const aiMesh* mesh,const aiScene* scene);
+  void ProcessNode(aiNode* node,const aiScene* scene);
+  Mesh ProcessMesh(aiMesh* mesh,const aiScene* scene);
+  void ExtractBoneData(std::vector<Vertex>& vertices,aiMesh* mesh,const aiScene* scene);
   
   void SetDefaultVertexBoneData(Vertex& vertex);
   void SetVertexBoneData(Vertex& vertex, int id, float weight);

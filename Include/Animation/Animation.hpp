@@ -7,7 +7,7 @@
 class Animation{
 private:
   float duration;
-  float ticksPerSecond;
+  int ticksPerSecond;
   
   AssimpNodeData rootNode;
   std::vector<Bone> animationBones;
@@ -21,7 +21,7 @@ public:
   ~Animation() = default;
   
   Bone* FindBone(const std::string& boneName);
-
+  
   float GetDuration() {return duration;}
   float GetTicksPerSecond() {return ticksPerSecond;}
   AssimpNodeData& GetRootNode() {return rootNode;}
