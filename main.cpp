@@ -16,6 +16,94 @@ GLFWwindow* window = nullptr;
 float dt = 0.0f;
 float lastFrame = 0.0f;
 
+bool IsKeyPressed(GLenum key){
+  return glfwGetKey(window, key)==GLFW_PRESS;
+}
+
+bool IsKeyReleased(GLenum key){
+  return glfwGetKey(window, key)==GLFW_RELEASE;
+}
+
+bool IsMousePressed(GLenum button){
+  return glfwGetMouseButton(window, button)==GLFW_PRESS;
+}
+
+bool IsMouseReleased(GLenum button){
+  return glfwGetMouseButton(window, button)==GLFW_RELEASE;
+}
+
+class Camera{
+private:
+  float mSpeed = 5.0f;
+  float mSensitivity = 0.1f;
+  float mYaw = -90.0f;
+  float mPitch = 0.0f;
+  float mFov = 45.0f;
+  float lastX = WIDTH/2.0f;
+  float lastY = HEIGHT/2.0f;
+  bool mFirstMouse = true;
+
+  glm::vec3 mPosition = glm::vec3(0.0f,1.5f,3.0f);
+  glm::vec3 mFront = glm::vec3(0.0f,0.0f,-1.0f);
+  glm::vec3 mUp = glm::vec3(0.0f,1.0f,0.0f);
+  
+  glm::mat4 mView = glm::mat4(1.0f);
+  glm::mat4 mProjection = glm::mat4(1.0f);
+  float mNearPlane = 0.1f;
+  float mFarPlane = 1000.0f;
+  
+  void UpdateMovement(float dt){
+    glm::vec3 front = glm::vec3(mFront.x, 0.0f, mFront.z);
+
+    if(IsKeyPressed(GLFW_KEY_W)) mPosition += mSpeed * dt * front;
+    if(IsKeyPressed(GLFW_KEY_S)) mPosition -= mSpeed * dt * front;
+    if(IsKeyPressed(GLFW_KEY_A)) mPosition -= mSpeed * dt * glm::normalize(glm::cross(front, mUp));
+    if(IsKeyPressed(GLFW_KEY_D)) mPosition += mSpeed * dt * glm::normalize(glm::cross(front, mUp));
+  }
+
+public:
+  Camera()=default;
+  ~Camera()=default;
+  
+  const glm::mat4& GetViewMatrix() const {return mView;}
+  const glm::mat4& GetProjectionMatrix() const {return mProjection;}
+
+  void UpdateCamera(float width, float height, float dt){
+    mView = glm::lookAt(mPosition, mPosition + mFront, mUp);
+    mProjection = glm::perspective(glm::radians(mFov), width/height, mNearPlane, mFarPlane);
+    UpdateMovement(dt);
+  }
+
+  void UpdateMouse(float xpos, float ypox){
+    if(mFirstMouse){
+      lastX = xpos;
+      lastY = ypox;
+      mFirstMouse = false;
+    }
+
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypox;
+    xoffset *= mSensitivity;
+    yoffset *= mSensitivity;
+
+    lastX = xpos;
+    lastY = ypox;
+
+    mYaw += xoffset;
+    mPitch += yoffset;
+
+    if(mPitch < -89.0f) mPitch = -89.0f;
+    if(mPitch > 89.0f) mPitch = 89.0f;
+
+    glm::vec3 direction;
+    direction.x = glm::cos(glm::radians(mYaw)) * glm::cos(glm::radians(mPitch));
+    direction.y = glm::sin(glm::radians(mPitch));
+    direction.z = glm::cos(glm::radians(mPitch)) * glm::sin(glm::radians(mYaw));
+
+    mFront = glm::normalize(direction);
+  }
+};
+
 class Shader{
 private:
   unsigned int mId;
@@ -172,20 +260,11 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height){
   glViewport(0, 0, width, height);
 }
 
-bool IsKeyPressed(GLenum key){
-  return glfwGetKey(window, key)==GLFW_PRESS;
-}
-
-bool IsKeyReleased(GLenum key){
-  return glfwGetKey(window, key)==GLFW_RELEASE;
-}
-
-bool IsMousePressed(GLenum button){
-  return glfwGetMouseButton(window, button)==GLFW_PRESS;
-}
-
-bool IsMouseReleased(GLenum button){
-  return glfwGetMouseButton(window, button)==GLFW_RELEASE;
+void mouse_callback(GLFWwindow* window, double xpos, double ypos){
+  Camera* camera = static_cast<Camera*>(glfwGetWindowUserPointer(window));
+  if(camera){
+    camera->UpdateMouse(xpos, ypos);
+  }
 }
 
 void ProcessInput(){
@@ -244,18 +323,32 @@ int main(int argc, char* argv[]){
   
   Shader shader("../vert.glsl", "../frag.glsl");
   
+  Camera camera;
+  glfwSetWindowUserPointer(window, &camera);
+
+  glEnable(GL_DEPTH_TEST);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+  glfwSetCursorPosCallback(window, mouse_callback);
+  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
   while(!glfwWindowShouldClose(window)){
     glfwPollEvents();
     UpdateWindow();
     UpdateTime();
     ProcessInput();
+    camera.UpdateCamera(WIDTH, HEIGHT, dt);
 
     glClearColor(0.0f,0.0f,0.0f,1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
+    glm::mat4 model = glm::mat4(1.0f);
+    glm::mat4 view = camera.GetViewMatrix();
+    glm::mat4 projection = camera.GetProjectionMatrix();
+
     shader.Use();
+    shader.SetValue("model", model);
+    shader.SetValue("view", view);
+    shader.SetValue("projection", projection);
     vao.Bind();
     glDrawArrays(GL_TRIANGLES, 0, 6);
     vao.Unbind();
