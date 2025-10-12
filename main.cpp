@@ -210,6 +210,22 @@ public:
   ~VBO(){
     glDeleteBuffers(1, &mId);
   }
+  
+  VBO(const VBO&) = delete;
+  VBO& operator=(const VBO&) = delete;
+  
+  VBO(VBO&& other) noexcept : mId(other.mId) {
+    other.mId = 0;
+  }
+  
+  VBO& operator=(VBO&& other) noexcept {
+    if(this != &other){
+      glDeleteBuffers(1, &mId);
+      mId = other.mId;
+      other.mId = 0;
+    }
+    return *this;
+  }
 
   void Bind(){
     glBindBuffer(GL_ARRAY_BUFFER, mId);
@@ -244,6 +260,22 @@ public:
   ~EBO(){
     glDeleteBuffers(1, &mId);
   }
+  
+  EBO(const EBO&) = delete;
+  EBO& operator=(const EBO&) = delete;
+  
+  EBO(EBO&& other) noexcept : mId(other.mId) {
+    other.mId = 0;
+  }
+  
+  EBO& operator=(EBO&& other) noexcept {
+    if(this != &other){
+      glDeleteBuffers(1, &mId);
+      mId = other.mId;
+      other.mId = 0;
+    }
+    return *this;
+  }
 
   void Bind(){
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mId);
@@ -277,6 +309,22 @@ public:
 
   ~VAO(){
     glDeleteVertexArrays(1, &mId);
+  }
+
+  VAO(const VAO&) = delete;
+  VAO& operator=(const VAO&) = delete;
+  
+  VAO(VAO&& other) noexcept : mId(other.mId) {
+    other.mId = 0;
+  }
+  
+  VAO& operator=(VAO&& other) noexcept {
+    if(this != &other){
+      glDeleteVertexArrays(1, &mId);
+      mId = other.mId;
+      other.mId = 0;
+    }
+    return *this;
   }
 
   void Bind(){
@@ -316,7 +364,7 @@ private:
     mEbo.Bind();
     mEbo.AllocateAndFill(mIndices.size() * sizeof(unsigned int), mIndices.data(), GL_STATIC_DRAW);
 
-    mVao.SetAttrib(0, 3, sizeof(Vertex), 0);
+    mVao.SetAttrib(0, 3, sizeof(Vertex), offsetof(Vertex, position));
     mVao.SetAttrib(1, 3, sizeof(Vertex), offsetof(Vertex, normal));
     mVao.SetAttrib(2, 2, sizeof(Vertex), offsetof(Vertex, texcoord));
 
@@ -332,6 +380,29 @@ public:
   }
   
   ~Mesh()=default;
+  
+  Mesh(const Mesh&) = delete;
+  Mesh& operator=(const Mesh&) = delete;
+
+  Mesh(Mesh&& other) noexcept 
+    : mVertices(std::move(other.mVertices)),
+      mIndices(std::move(other.mIndices)),
+      mVbo(std::move(other.mVbo)),
+      mVao(std::move(other.mVao)),
+      mEbo(std::move(other.mEbo))
+  {
+  }
+
+  Mesh& operator=(Mesh&& other) noexcept {
+    if(this != &other){
+      mVertices = std::move(other.mVertices);
+      mIndices = std::move(other.mIndices);
+      mVbo = std::move(other.mVbo);
+      mVao = std::move(other.mVao);
+      mEbo = std::move(other.mEbo);
+    }
+    return *this;
+  }
 
   std::vector<Vertex>& GetVertices() {return mVertices;}
   std::vector<unsigned int>& GetIndices() {return mIndices;}
