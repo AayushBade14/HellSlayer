@@ -1,12 +1,18 @@
 #version 460 core
 
-layout(location=0)in vec2 aPos;
-layout(location=1)in vec2 aTC;
+layout(location=0)in vec3 aPos;
+layout(location=1)in vec3 aNormal;
+layout(location=2)in vec2 aTC;
+
+out vec3 Normal;
+out vec2 TC;
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
 void main(){
-  gl_Position = projection * view * model * vec4(aPos, 0.0, 1.0);
+  gl_Position = projection * view * model * vec4(aPos, 1.0);
+  Normal = aNormal;
+  TC = aTC;
 }

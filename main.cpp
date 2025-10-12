@@ -8,6 +8,9 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
 
 int WIDTH = 1920;
 int HEIGHT = 1013;
@@ -229,6 +232,40 @@ public:
   }
 };
 
+class EBO{
+private:
+  unsigned int mId;
+
+public:
+  EBO(){
+    glGenBuffers(1, &mId);
+  }
+
+  ~EBO(){
+    glDeleteBuffers(1, &mId);
+  }
+
+  void Bind(){
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mId);
+  }
+
+  void Unbind(){
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  }
+
+  void AllocateAndFill(size_t size, const void* data, GLenum usage){
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, data, usage);
+  }
+
+  void Allocate(size_t size, GLenum usage){
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, NULL, usage);
+  }
+
+  void Fill(size_t size, size_t offset, const void* data){
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset, size, data);
+  }
+};
+
 class VAO{
 private:
   unsigned int mId;
@@ -253,6 +290,131 @@ public:
   void SetAttrib(int loc, int nr, size_t stride, size_t offset){
     glEnableVertexAttribArray(loc);
     glVertexAttribPointer(loc, nr, GL_FLOAT, GL_FALSE, stride, (void*)offset);
+  }
+};
+
+struct Vertex{
+  glm::vec3 position;
+  glm::vec3 normal;
+  glm::vec2 texcoord; 
+};
+
+class Mesh{
+private:
+  std::vector<Vertex> mVertices;
+  std::vector<unsigned int> mIndices;
+  
+  VBO mVbo;
+  VAO mVao;
+  EBO mEbo;
+  
+  void SetupMesh(){
+    mVao.Bind();
+    
+    mVbo.Bind();
+    mVbo.AllocateAndFill(mVertices.size() * sizeof(Vertex), mVertices.data(), GL_STATIC_DRAW);
+    mEbo.Bind();
+    mEbo.AllocateAndFill(mIndices.size() * sizeof(unsigned int), mIndices.data(), GL_STATIC_DRAW);
+
+    mVao.SetAttrib(0, 3, sizeof(Vertex), 0);
+    mVao.SetAttrib(1, 3, sizeof(Vertex), offsetof(Vertex, normal));
+    mVao.SetAttrib(2, 2, sizeof(Vertex), offsetof(Vertex, texcoord));
+
+    mVao.Unbind();
+  }
+  
+public:
+  Mesh(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices){
+    this->mVertices = vertices;
+    this->mIndices = indices;
+
+    SetupMesh();
+  }
+  
+  ~Mesh()=default;
+
+  std::vector<Vertex>& GetVertices() {return mVertices;}
+  std::vector<unsigned int>& GetIndices() {return mIndices;}
+
+  void Draw(Shader& shader){
+    mVao.Bind();
+    glDrawElements(GL_TRIANGLES, mIndices.size(), GL_UNSIGNED_INT, 0);
+    mVao.Unbind();
+  }
+};
+
+class Model{
+private:
+  std::vector<Mesh> mMeshes;
+  
+  Mesh ProcessMesh(aiMesh* mesh, const aiScene* scene){
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
+
+    for(unsigned int i = 0; i < mesh->mNumVertices; i++){
+      Vertex vertex;
+      vertex.position.x = mesh->mVertices[i].x;
+      vertex.position.y = mesh->mVertices[i].y;
+      vertex.position.z = mesh->mVertices[i].z;
+      if(mesh->HasNormals()){
+        vertex.normal.x = mesh->mNormals[i].x;
+        vertex.normal.y = mesh->mNormals[i].y;
+        vertex.normal.z = mesh->mNormals[i].z;
+      }
+
+      if(mesh->mTextureCoords[0]){
+        vertex.texcoord.x = mesh->mTextureCoords[0][i].x;
+        vertex.texcoord.y = mesh->mTextureCoords[0][i].y;
+      }
+      else{
+        vertex.texcoord = glm::vec2(0.0f);
+      }
+      vertices.push_back(vertex);
+    }
+
+    for(unsigned int i = 0; i < mesh->mNumFaces; i++){
+      aiFace face = mesh->mFaces[i];
+      for(unsigned int j = 0; j < face.mNumIndices; j++){
+        indices.push_back(face.mIndices[j]);
+      }
+    }
+
+    return Mesh(vertices, indices);
+  }
+  
+  void ProcessNode(aiNode* node, const aiScene* scene){
+    for(unsigned int i = 0; i < node->mNumMeshes; i++){
+      aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
+      mMeshes.push_back(ProcessMesh(mesh, scene));
+    }
+
+    for(unsigned int i = 0; i < node->mNumChildren; i++){
+      ProcessNode(node->mChildren[i], scene);
+    }
+  }
+  
+  void LoadModel(const std::string& path){
+    Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(path.c_str(), aiProcess_Triangulate | aiProcess_GenNormals);
+    if(!scene || !scene->mRootNode || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE){
+      std::cerr<<"ERROR: Loading model -> "<<path<<" REASON: "<<importer.GetErrorString()<<std::endl;
+      exit(1);
+    }
+    ProcessNode(scene->mRootNode, scene);
+  }
+  
+public:
+  Model(const std::string& path){
+    LoadModel(path);
+    std::cout<<"Model Loaded successfully!"<<std::endl;
+  }
+
+  ~Model()=default;
+
+  void Draw(Shader& shader){
+    for(unsigned int i = 0; i < mMeshes.size(); i++){
+      mMeshes[i].Draw(shader);
+    }
   }
 };
 
@@ -302,27 +464,10 @@ int main(int argc, char* argv[]){
 
   gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
   
-  float vertices[] = {
-    -1.0f,-1.0f,  0.0f,0.0f,
-    1.0f,-1.0f,   1.0f,0.0f,
-    1.0f,1.0f,    1.0f,1.0f,
-
-    1.0f,1.0f,    1.0f,1.0f,
-    -1.0f,1.0f,   0.0f,1.0f,
-    -1.0f,-1.0f,  0.0f,0.0f
-  };
-  
-  VBO vbo;
-  VAO vao;
-  vao.Bind();
-  vbo.Bind();
-  vbo.AllocateAndFill(sizeof(vertices), vertices, GL_STATIC_DRAW);
-  vao.SetAttrib(0, 2, 4*sizeof(float), 0);
-  vao.SetAttrib(1, 2, 4*sizeof(float), 2*sizeof(float));
-  vao.Unbind();
-  
   Shader shader("../vert.glsl", "../frag.glsl");
   
+  Model monkey("../monkey_face.obj");
+
   Camera camera;
   glfwSetWindowUserPointer(window, &camera);
 
@@ -342,6 +487,7 @@ int main(int argc, char* argv[]){
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     glm::mat4 model = glm::mat4(1.0f);
+    model = glm::scale(model, glm::vec3(10.0f));
     glm::mat4 view = camera.GetViewMatrix();
     glm::mat4 projection = camera.GetProjectionMatrix();
 
@@ -349,9 +495,8 @@ int main(int argc, char* argv[]){
     shader.SetValue("model", model);
     shader.SetValue("view", view);
     shader.SetValue("projection", projection);
-    vao.Bind();
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    vao.Unbind();
+    
+    monkey.Draw(shader);
 
     glfwSwapBuffers(window);
   }
