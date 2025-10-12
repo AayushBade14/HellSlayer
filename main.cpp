@@ -57,7 +57,7 @@ private:
   }
 
   void CreateShaderProgram(unsigned int& vert, unsigned int& frag){
-    mId = glCreateProgram(mId);
+    mId = glCreateProgram();
     glAttachShader(mId, vert);
     glAttachShader(mId, frag);
     glLinkProgram(mId);
@@ -164,7 +164,7 @@ public:
 
   void SetAttrib(int loc, int nr, size_t stride, size_t offset){
     glEnableVertexAttribArray(loc);
-    glVertexAttribPointer(loc, nr, GL_FLOAT, GL_FALSE, stride, (void*)start);
+    glVertexAttribPointer(loc, nr, GL_FLOAT, GL_FALSE, stride, (void*)offset);
   }
 };
 
@@ -214,9 +214,9 @@ void UpdateTime(){
 int main(int argc, char* argv[]){
   glfwInit();
 
-  GLFWwindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  GLFWwindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-  GLFWwindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
   window = glfwCreateWindow(WIDTH, HEIGHT, TITLE, NULL, NULL);
   glfwMakeContextCurrent(window);
