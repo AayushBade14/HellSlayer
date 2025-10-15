@@ -3,11 +3,13 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
@@ -70,7 +72,8 @@ public:
   
   const glm::mat4& GetViewMatrix() const {return mView;}
   const glm::mat4& GetProjectionMatrix() const {return mProjection;}
-
+  glm::vec3 GetPosition() {return mPosition;}
+  glm::vec3 GetFront() {return mFront;}
   void UpdateCamera(float width, float height, float dt){
     mView = glm::lookAt(mPosition, mPosition + mFront, mUp);
     mProjection = glm::perspective(glm::radians(mFov), width/height, mNearPlane, mFarPlane);
@@ -347,6 +350,44 @@ struct Vertex{
   glm::vec2 texcoord; 
 };
 
+struct Transform{
+  glm::vec3 position;
+  glm::quat rotation;
+  glm::vec3 scale;
+
+  glm::mat4 ToMatrix(){
+    glm::mat4 T = glm::translate(glm::mat4(1.0f),position);
+    glm::mat4 R = glm::toMat4(rotation);
+    glm::mat4 S = glm::scale(glm::mat4(1.0f),scale);
+    return T*R*S;
+  }
+};
+
+struct Skeleton{
+  std::vector<int> parentIndices;
+  std::vector<glm::mat4> offsetMatrix;
+};
+
+struct Keyframe{
+  float time;
+  glm::vec3 position;
+  glm::quat rotation;
+  glm::vec3 scale;
+};
+
+struct BoneTrack{
+  std::vector<Keyframe> keyframes;
+};
+
+struct AnimationClip{
+  std::string name;
+  float duration;
+  std::vector<BoneTrack> tracks;
+};
+
+std::unordered_map<std::string, int> boneToIndexMap;
+
+
 class Mesh{
 private:
   std::vector<Vertex> mVertices;
@@ -523,6 +564,12 @@ void UpdateTime(){
   lastFrame = currentFrame;
 }
 
+struct Enemy{
+  glm::vec3 position;
+  glm::vec3 front;
+};
+
+
 int main(int argc, char* argv[]){
   glfwInit();
 
@@ -538,9 +585,14 @@ int main(int argc, char* argv[]){
   Shader shader("../vert.glsl", "../frag.glsl");
   
   Model monkey("../monkey_face.obj");
+  Model terrain("../terrain.obj");
 
   Camera camera;
   glfwSetWindowUserPointer(window, &camera);
+  
+  std::vector<Enemy> enemies;
+  Enemy enemy = {glm::vec3(5.0f), glm::vec3(0.0f,0.0f,1.0f)};
+  enemies.push_back(enemy);
 
   glEnable(GL_DEPTH_TEST);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
@@ -567,7 +619,41 @@ int main(int argc, char* argv[]){
     shader.SetValue("view", view);
     shader.SetValue("projection", projection);
     
+    //monkey.Draw(shader);
+    terrain.Draw(shader);
+    
+    /*for(unsigned int i = 0; i < enemies.size(); i++){
+      glm::vec3 dir = camera.GetPosition() - enemies[i].position;
+      float angle = glm::acos(glm::dot(dir,camera.GetFront()));
+      enemies[i].position += dt * glm::normalize(dir);
+      model = glm::mat4(1.0f);
+      model = glm::translate(model, enemies[i].position);
+      model = glm::rotate(model, angle, glm::vec3(0.0f,1.0f,0.0f));
+      shader.SetValue("model",model);
+      monkey.Draw(shader);
+    }*/
+    for (unsigned int i = 0; i < enemies.size(); i++) {
+    // Direction from enemy to camera (normalized)
+    glm::vec3 dir = glm::normalize(camera.GetPosition() - enemies[i].position);
+
+    // Move enemy toward the camera
+    enemies[i].position += dt * dir; // speed factor can be multiplied here if needed
+
+    // Compute yaw angle to face the camera
+    float yaw = glm::degrees(atan2(dir.z, dir.x));
+
+    // Set up model matrix for enemy
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, enemies[i].position);
+    
+    // Rotate around Y-axis so enemy faces camera
+    // Adjust +90 degrees if your model's default front is along X+
+    model = glm::rotate(model, -glm::radians(yaw) + glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+    // Send model matrix to shader and draw
+    shader.SetValue("model", model);
     monkey.Draw(shader);
+  }
 
     glfwSwapBuffers(window);
   }
