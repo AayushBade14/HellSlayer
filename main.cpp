@@ -1,9 +1,11 @@
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/common.hpp>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -552,7 +554,7 @@ public:
     file.close();
   }
 };
-/*
+
 struct Transform{
   glm::vec3 position;
   glm::quat rotation;
@@ -562,6 +564,7 @@ struct Transform{
     glm::mat4 T = glm::translate(glm::mat4(1.0f), position);
     glm::mat4 R = glm::toMat4(rotation);
     glm::mat4 S = glm::scale(glm::mat4(1.0f), scale);
+    return T*R*S;
   }
 };
 
@@ -570,7 +573,8 @@ struct Entity{
   std::string modelPath;
   Transform transform;
 };
-*/
+
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height){
   glViewport(0, 0, width, height);
 }
@@ -635,9 +639,10 @@ int main(int argc, char* argv[]){
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    
-    Model model1;
-    model1.LoadModelFromBinary(std::string(argv[1]));
+    std::vector<Entity> entities;
+entities.push_back({"Floor","../floor_crochet.bin",{glm::vec3(0.0f,-1.0f,0.0f),glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(1.0f)}});
+entities.push_back({"Monkey","../monkey_crochet.bin",{glm::vec3(0.0f,1.0f,0.0f),glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(1.0f)}});
+entities.push_back({"Monkey","../monkey_crochet.bin",{glm::vec3(1.0f,1.0f,0.0f),glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(1.0f)}});
 
     while(!glfwWindowShouldClose(window)){
       glfwPollEvents();
@@ -655,10 +660,16 @@ int main(int argc, char* argv[]){
       glm::mat4 projection = camera.GetProjectionMatrix();
 
       shader.Use();
-      shader.SetValue("model", model);
+      //shader.SetValue("model", model);
       shader.SetValue("view", view);
       shader.SetValue("projection", projection);
-      model1.Draw(shader);
+      
+      for(auto& entity: entities){
+        shader.SetValue("model",entity.transform.ToMatrix());
+        Model en;
+        en.LoadModelFromBinary(entity.modelPath);
+        en.Draw(shader);
+      }
   
       glfwSwapBuffers(window);
     }
