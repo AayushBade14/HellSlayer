@@ -574,6 +574,29 @@ struct Entity{
   Transform transform;
 };
 
+void RenderTranslateGizmos(Shader& shader, const glm::vec3 origin){
+  std::vector<Entity> translate_gizmos;
+  translate_gizmos.push_back({"gizmo_x","../gizmo_translate_crochet.bin",{origin,glm::angleAxis(glm::radians(-90.0f),glm::vec3(0.0f,0.0f,1.0f)),glm::vec3(0.1f)}});
+  translate_gizmos.push_back({"gizmo_y","../gizmo_translate_crochet.bin",{origin,glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(0.1f)}});
+  translate_gizmos.push_back({"gizmo_z","../gizmo_translate_crochet.bin",{origin,glm::angleAxis(glm::radians(90.0f),glm::vec3(1.0f,0.0f,0.0f)),glm::vec3(0.1f)}});
+  
+  Model gmodel;
+  gmodel.LoadModelFromBinary("../gizmo_translate_crochet.bin");
+  glDisable(GL_DEPTH_TEST);
+  for(auto& tgizmo : translate_gizmos){
+    int type = 0;
+    
+    if(tgizmo.name == "gizmo_x") type = 0;
+    else if(tgizmo.name == "gizmo_y") type = 1;
+    else if(tgizmo.name == "gizmo_z") type = 2;
+
+    shader.Use();
+    shader.SetValue("model",tgizmo.transform.ToMatrix());
+    shader.SetValue("gizmo_type", type);
+    gmodel.Draw(shader);
+  }
+  glEnable(GL_DEPTH_TEST);
+}
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height){
   glViewport(0, 0, width, height);
@@ -631,7 +654,8 @@ int main(int argc, char* argv[]){
   else if(argc==2){
   
     Shader shader("../vert.glsl", "../frag.glsl");
-  
+    Shader gshader("../vert.glsl", "../gizmo_frag.glsl");
+
     Camera camera;
     glfwSetWindowUserPointer(window, &camera);
   
@@ -641,16 +665,27 @@ int main(int argc, char* argv[]){
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     std::vector<Entity> entities;
 entities.push_back({"Floor","../floor_crochet.bin",{glm::vec3(0.0f,-1.0f,0.0f),glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(1.0f)}});
-entities.push_back({"Monkey","../monkey_crochet.bin",{glm::vec3(0.0f,1.0f,0.0f),glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(1.0f)}});
-entities.push_back({"Monkey","../monkey_crochet.bin",{glm::vec3(1.0f,1.0f,0.0f),glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(1.0f)}});
-
+entities.push_back({"Monkey1","../monkey_crochet.bin",{glm::vec3(0.0f,1.0f,0.0f),glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(1.0f)}});
+entities.push_back({"Monkey2","../monkey_crochet.bin",{glm::vec3(3.0f,1.0f,0.0f),glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(0.1f)}});
+    
+    glm::vec3 origin = {0.0f,-1.0f,0.0f}; 
     while(!glfwWindowShouldClose(window)){
       glfwPollEvents();
       UpdateWindow();
       UpdateTime();
       ProcessInput();
       camera.UpdateCamera(WIDTH, HEIGHT, dt);
-
+      
+      if(IsKeyPressed(GLFW_KEY_P)){
+        origin = {0.0f,-1.0f,0.0f};
+      }
+      if(IsKeyPressed(GLFW_KEY_O)){
+        origin = {0.0f,1.0f,0.0f};
+      }
+      if(IsKeyPressed(GLFW_KEY_I)){
+        origin = {3.0f,1.0f,0.0f};
+      }
+      
       glClearColor(0.0f,0.0f,0.0f,1.0f);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
@@ -670,7 +705,12 @@ entities.push_back({"Monkey","../monkey_crochet.bin",{glm::vec3(1.0f,1.0f,0.0f),
         en.LoadModelFromBinary(entity.modelPath);
         en.Draw(shader);
       }
-  
+      
+      gshader.Use();
+      gshader.SetValue("view", view);
+      gshader.SetValue("projection", projection);
+      RenderTranslateGizmos(gshader, origin);
+
       glfwSwapBuffers(window);
     }
 
