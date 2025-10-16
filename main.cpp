@@ -598,6 +598,84 @@ void RenderTranslateGizmos(Shader& shader, const glm::vec3 origin){
   glEnable(GL_DEPTH_TEST);
 }
 
+void RenderScaleGizmos(Shader& shader, const glm::vec3 origin){
+  std::vector<Entity> scale_gizmos;
+  scale_gizmos.push_back({"gizmo_x","../gizmo_scale_crochet.bin",{origin,glm::angleAxis(glm::radians(-90.0f),glm::vec3(0.0f,0.0f,1.0f)),glm::vec3(0.1f)}});
+  scale_gizmos.push_back({"gizmo_y","../gizmo_scale_crochet.bin",{origin,glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(0.1f)}});
+  scale_gizmos.push_back({"gizmo_z","../gizmo_scale_crochet.bin",{origin,glm::angleAxis(glm::radians(90.0f),glm::vec3(1.0f,0.0f,0.0f)),glm::vec3(0.1f)}});
+  
+  Model gmodel;
+  gmodel.LoadModelFromBinary("../gizmo_scale_crochet.bin");
+  glDisable(GL_DEPTH_TEST);
+  for(auto& tgizmo : scale_gizmos){
+    int type = 0;
+    
+    if(tgizmo.name == "gizmo_x") type = 0;
+    else if(tgizmo.name == "gizmo_y") type = 1;
+    else if(tgizmo.name == "gizmo_z") type = 2;
+
+    shader.Use();
+    shader.SetValue("model",tgizmo.transform.ToMatrix());
+    shader.SetValue("gizmo_type", type);
+    gmodel.Draw(shader);
+  }
+  glEnable(GL_DEPTH_TEST);
+}
+
+void RenderRotateGizmos(Shader& shader, const glm::vec3 origin){
+  std::vector<Entity> rotate_gizmos;
+  rotate_gizmos.push_back({"gizmo_x","../gizmo_rotate_crochet.bin",{origin,glm::angleAxis(glm::radians(-90.0f),glm::vec3(0.0f,0.0f,1.0f)),glm::vec3(1.0f)}});
+  rotate_gizmos.push_back({"gizmo_y","../gizmo_rotate_crochet.bin",{origin,glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(1.0f)}});
+  rotate_gizmos.push_back({"gizmo_z","../gizmo_rotate_crochet.bin",{origin,glm::angleAxis(glm::radians(90.0f),glm::vec3(1.0f,0.0f,0.0f)),glm::vec3(1.0f)}});
+  
+  Model gmodel;
+  gmodel.LoadModelFromBinary("../gizmo_rotate_crochet.bin");
+  glDisable(GL_DEPTH_TEST);
+  for(auto& tgizmo : rotate_gizmos){
+    int type = 0;
+    
+    if(tgizmo.name == "gizmo_x") type = 0;
+    else if(tgizmo.name == "gizmo_y") type = 1;
+    else if(tgizmo.name == "gizmo_z") type = 2;
+
+    shader.Use();
+    shader.SetValue("model",tgizmo.transform.ToMatrix());
+    shader.SetValue("gizmo_type", type);
+    gmodel.Draw(shader);
+  }
+  glEnable(GL_DEPTH_TEST);
+}
+
+glm::vec3 GetRayFromMouse(float mouseX, float mouseY, const glm::mat4& proj, const glm::mat4& view){
+  float x = (2.0f*mouseX)/float(WIDTH) - 1.0f;
+  float y = 1.0f - (2.0f*mouseY)/float(HEIGHT);
+
+  glm::vec4 rayClip(x, y, -1.0f, 1.0f);
+
+  glm::vec4 rayEye = glm::inverse(proj) * rayClip;
+  rayEye = glm::vec4(rayEye.x, rayEye.y, -1.0f, 0.0f);
+
+  glm::vec3 rayWorld = glm::normalize(glm::vec3(glm::inverse(view) * rayEye));
+
+  return rayWorld;
+}
+
+
+bool RayIntersectsSphere(const glm::vec3& rayOrigin, const glm::vec3& rayDir,
+                         const glm::vec3& sphereCenter, float radius, float& t)
+{
+    glm::vec3 oc = rayOrigin - sphereCenter;
+    float a = glm::dot(rayDir, rayDir);
+    float b = 2.0f * glm::dot(oc, rayDir);
+    float c = glm::dot(oc, oc) - radius * radius;
+    float discriminant = b*b - 4*a*c;
+    if (discriminant < 0) return false;
+    else {
+        t = (-b - sqrt(discriminant)) / (2.0f * a);
+        return t >= 0.0f;
+    }
+}
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height){
   glViewport(0, 0, width, height);
 }
@@ -632,6 +710,11 @@ void UpdateTime(){
   lastFrame = currentFrame;
 }
 
+double mouseX = WIDTH/2.0f;
+double mouseY = HEIGHT/2.0f;
+
+Entity* selectedObject = nullptr;
+
 int main(int argc, char* argv[]){
   glfwInit();
 
@@ -662,7 +745,7 @@ int main(int argc, char* argv[]){
     glEnable(GL_DEPTH_TEST);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     std::vector<Entity> entities;
 entities.push_back({"Floor","../floor_crochet.bin",{glm::vec3(0.0f,-1.0f,0.0f),glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(1.0f)}});
 entities.push_back({"Monkey1","../monkey_crochet.bin",{glm::vec3(0.0f,1.0f,0.0f),glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(1.0f)}});
@@ -676,15 +759,7 @@ entities.push_back({"Monkey2","../monkey_crochet.bin",{glm::vec3(3.0f,1.0f,0.0f)
       ProcessInput();
       camera.UpdateCamera(WIDTH, HEIGHT, dt);
       
-      if(IsKeyPressed(GLFW_KEY_P)){
-        origin = {0.0f,-1.0f,0.0f};
-      }
-      if(IsKeyPressed(GLFW_KEY_O)){
-        origin = {0.0f,1.0f,0.0f};
-      }
-      if(IsKeyPressed(GLFW_KEY_I)){
-        origin = {3.0f,1.0f,0.0f};
-      }
+      glfwGetCursorPos(window, &mouseX, &mouseY);
       
       glClearColor(0.0f,0.0f,0.0f,1.0f);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -693,24 +768,51 @@ entities.push_back({"Monkey2","../monkey_crochet.bin",{glm::vec3(3.0f,1.0f,0.0f)
       //model = glm::scale(model, glm::vec3(10.0f));
       glm::mat4 view = camera.GetViewMatrix();
       glm::mat4 projection = camera.GetProjectionMatrix();
+      
+      glm::vec3 rayWorld = GetRayFromMouse(mouseX, mouseY, projection, view);
 
       shader.Use();
       //shader.SetValue("model", model);
       shader.SetValue("view", view);
       shader.SetValue("projection", projection);
-      
-      for(auto& entity: entities){
+
+      for(auto& entity: entities){  
         shader.SetValue("model",entity.transform.ToMatrix());
         Model en;
         en.LoadModelFromBinary(entity.modelPath);
         en.Draw(shader);
       }
+
+      if(IsMousePressed(GLFW_MOUSE_BUTTON_LEFT)){
+        Entity* selected = nullptr;
+        float closestT = FLT_MAX;
+        for(auto& entity: entities){
+          float t = 0.0f;
+          if(RayIntersectsSphere(camera.GetPosition(), rayWorld, entity.transform.position, entity.transform.scale.x, t) && IsMousePressed(GLFW_MOUSE_BUTTON_LEFT)){
+            
+            if(t < closestT){
+              closestT = t;
+              selected = &entity;
+            }
+          }
+        }
+        selectedObject = selected;
+      }
       
       gshader.Use();
       gshader.SetValue("view", view);
       gshader.SetValue("projection", projection);
-      RenderTranslateGizmos(gshader, origin);
-
+      
+      if(selectedObject) RenderTranslateGizmos(gshader, selectedObject->transform.position);
+      //else if(IsKeyPressed(GLFW_KEY_2)) RenderScaleGizmos(gshader, origin);
+      //else if(IsKeyPressed(GLFW_KEY_3)) RenderRotateGizmos(gshader, origin);
+      //else if(IsKeyPressed(GLFW_KEY_4)){
+        //RenderTranslateGizmos(gshader, origin);
+        //RenderScaleGizmos(gshader, origin);
+        //RenderRotateGizmos(gshader, origin);
+      //}
+      //else RenderTranslateGizmos(gshader, origin);
+      
       glfwSwapBuffers(window);
     }
 
