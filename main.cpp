@@ -350,44 +350,6 @@ struct Vertex{
   glm::vec2 texcoord; 
 };
 
-struct Transform{
-  glm::vec3 position;
-  glm::quat rotation;
-  glm::vec3 scale;
-
-  glm::mat4 ToMatrix(){
-    glm::mat4 T = glm::translate(glm::mat4(1.0f),position);
-    glm::mat4 R = glm::toMat4(rotation);
-    glm::mat4 S = glm::scale(glm::mat4(1.0f),scale);
-    return T*R*S;
-  }
-};
-
-struct Skeleton{
-  std::vector<int> parentIndices;
-  std::vector<glm::mat4> offsetMatrix;
-};
-
-struct Keyframe{
-  float time;
-  glm::vec3 position;
-  glm::quat rotation;
-  glm::vec3 scale;
-};
-
-struct BoneTrack{
-  std::vector<Keyframe> keyframes;
-};
-
-struct AnimationClip{
-  std::string name;
-  float duration;
-  std::vector<BoneTrack> tracks;
-};
-
-std::unordered_map<std::string, int> boneToIndexMap;
-
-
 class Mesh{
 private:
   std::vector<Vertex> mVertices;
@@ -516,6 +478,8 @@ private:
   }
   
 public:
+  Model(){}
+
   Model(const std::string& path){
     LoadModel(path);
     std::cout<<"Model Loaded successfully!"<<std::endl;
@@ -528,8 +492,85 @@ public:
       mMeshes[i].Draw(shader);
     }
   }
+
+  void SaveModel(const std::string& path){
+    //char magic[10] = "MDL0";
+    int version = 1;
+    int meshCount = mMeshes.size();
+    
+    std::ofstream file(path, std::ios::binary);
+
+    //file.write(reinterpret_cast<const char*>magic, sizeof(magic));
+    file.write(reinterpret_cast<const char*>(&version), sizeof(int));
+    file.write(reinterpret_cast<const char*>(&meshCount), sizeof(int));
+
+    for(auto& mesh : mMeshes){
+      std::vector<Vertex> vertices = mesh.GetVertices();
+      std::vector<unsigned int> indices = mesh.GetIndices();
+      int numVertices = vertices.size();
+      int numIndices = indices.size();
+
+      file.write(reinterpret_cast<const char*>(&numVertices), sizeof(int));
+      file.write(reinterpret_cast<const char*>(vertices.data()), numVertices * sizeof(Vertex));
+      file.write(reinterpret_cast<const char*>(&numIndices), sizeof(int));
+      file.write(reinterpret_cast<const char*>(indices.data()), numIndices * sizeof(unsigned int));
+    }
+    file.close();
+    std::cout<<"Model written successfully to "<<path<<std::endl;
+  }
+
+  void LoadModelFromBinary(const std::string& path){
+    std::ifstream file(path, std::ios::binary);
+
+    int version;
+    int meshCount;
+
+    file.read(reinterpret_cast<char*>(&version), sizeof(int));
+    file.read(reinterpret_cast<char*>(&meshCount), sizeof(int));
+
+    if(version == 1){
+      for(int i = 0; i < meshCount; i++){
+        int numVertices;
+        int numIndices;
+
+        file.read(reinterpret_cast<char*>(&numVertices), sizeof(int));
+        std::vector<Vertex> vertices(numVertices);
+        file.read(reinterpret_cast<char*>(vertices.data()), sizeof(Vertex)*numVertices);
+        
+        file.read(reinterpret_cast<char*>(&numIndices), sizeof(int));
+        std::vector<unsigned int> indices(numIndices);
+        file.read(reinterpret_cast<char*>(indices.data()), sizeof(unsigned int)*numIndices);
+        
+        mMeshes.push_back(Mesh(vertices, indices));
+      }
+      std::cout<<"successfully loaded model from binary!"<<std::endl;
+    }
+    else{
+      std::cout<<"Model not supported!"<<std::endl;
+      exit(1);
+    }
+    file.close();
+  }
+};
+/*
+struct Transform{
+  glm::vec3 position;
+  glm::quat rotation;
+  glm::vec3 scale;
+
+  glm::mat4 ToMatrix(){
+    glm::mat4 T = glm::translate(glm::mat4(1.0f), position);
+    glm::mat4 R = glm::toMat4(rotation);
+    glm::mat4 S = glm::scale(glm::mat4(1.0f), scale);
+  }
 };
 
+struct Entity{
+  std::string name;
+  std::string modelPath;
+  Transform transform;
+};
+*/
 void framebuffer_size_callback(GLFWwindow* window, int width, int height){
   glViewport(0, 0, width, height);
 }
@@ -564,12 +605,6 @@ void UpdateTime(){
   lastFrame = currentFrame;
 }
 
-struct Enemy{
-  glm::vec3 position;
-  glm::vec3 front;
-};
-
-
 int main(int argc, char* argv[]){
   glfwInit();
 
@@ -581,85 +616,56 @@ int main(int argc, char* argv[]){
   glfwMakeContextCurrent(window);
 
   gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
-  
-  Shader shader("../vert.glsl", "../frag.glsl");
-  
-  Model monkey("../monkey_face.obj");
-  Model terrain("../terrain.obj");
 
-  Camera camera;
-  glfwSetWindowUserPointer(window, &camera);
-  
-  std::vector<Enemy> enemies;
-  Enemy enemy = {glm::vec3(5.0f), glm::vec3(0.0f,0.0f,1.0f)};
-  enemies.push_back(enemy);
-
-  glEnable(GL_DEPTH_TEST);
-  glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-  glfwSetCursorPosCallback(window, mouse_callback);
-  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
-  while(!glfwWindowShouldClose(window)){
-    glfwPollEvents();
-    UpdateWindow();
-    UpdateTime();
-    ProcessInput();
-    camera.UpdateCamera(WIDTH, HEIGHT, dt);
-
-    glClearColor(0.0f,0.0f,0.0f,1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    
-    glm::mat4 model = glm::mat4(1.0f);
-    model = glm::scale(model, glm::vec3(10.0f));
-    glm::mat4 view = camera.GetViewMatrix();
-    glm::mat4 projection = camera.GetProjectionMatrix();
-
-    shader.Use();
-    shader.SetValue("model", model);
-    shader.SetValue("view", view);
-    shader.SetValue("projection", projection);
-    
-    //monkey.Draw(shader);
-    terrain.Draw(shader);
-    
-    /*for(unsigned int i = 0; i < enemies.size(); i++){
-      glm::vec3 dir = camera.GetPosition() - enemies[i].position;
-      float angle = glm::acos(glm::dot(dir,camera.GetFront()));
-      enemies[i].position += dt * glm::normalize(dir);
-      model = glm::mat4(1.0f);
-      model = glm::translate(model, enemies[i].position);
-      model = glm::rotate(model, angle, glm::vec3(0.0f,1.0f,0.0f));
-      shader.SetValue("model",model);
-      monkey.Draw(shader);
-    }*/
-    for (unsigned int i = 0; i < enemies.size(); i++) {
-    // Direction from enemy to camera (normalized)
-    glm::vec3 dir = glm::normalize(camera.GetPosition() - enemies[i].position);
-
-    // Move enemy toward the camera
-    enemies[i].position += dt * dir; // speed factor can be multiplied here if needed
-
-    // Compute yaw angle to face the camera
-    float yaw = glm::degrees(atan2(dir.z, dir.x));
-
-    // Set up model matrix for enemy
-    glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, enemies[i].position);
-    
-    // Rotate around Y-axis so enemy faces camera
-    // Adjust +90 degrees if your model's default front is along X+
-    model = glm::rotate(model, -glm::radians(yaw) + glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-
-    // Send model matrix to shader and draw
-    shader.SetValue("model", model);
-    monkey.Draw(shader);
+  if(argc == 3){
+    std::string mpath = std::string(argv[1]);
+    std::string savepath = std::string(argv[2]);
+    std::cout<<mpath<<" | "<<savepath<<std::endl;
+    Model model(mpath);
+    model.SaveModel(savepath);
   }
+  else if(argc==2){
+  
+    Shader shader("../vert.glsl", "../frag.glsl");
+  
+    Camera camera;
+    glfwSetWindowUserPointer(window, &camera);
+  
+    glEnable(GL_DEPTH_TEST);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    
+    Model model1;
+    model1.LoadModelFromBinary(std::string(argv[1]));
 
-    glfwSwapBuffers(window);
+    while(!glfwWindowShouldClose(window)){
+      glfwPollEvents();
+      UpdateWindow();
+      UpdateTime();
+      ProcessInput();
+      camera.UpdateCamera(WIDTH, HEIGHT, dt);
+
+      glClearColor(0.0f,0.0f,0.0f,1.0f);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+      glm::mat4 model = glm::mat4(1.0f);
+      //model = glm::scale(model, glm::vec3(10.0f));
+      glm::mat4 view = camera.GetViewMatrix();
+      glm::mat4 projection = camera.GetProjectionMatrix();
+
+      shader.Use();
+      shader.SetValue("model", model);
+      shader.SetValue("view", view);
+      shader.SetValue("projection", projection);
+      model1.Draw(shader);
+  
+      glfwSwapBuffers(window);
+    }
+
+    glfwDestroyWindow(window);
+    glfwTerminate();
   }
-
-  glfwDestroyWindow(window);
-  glfwTerminate();
-
+  
   return 0;
 }
