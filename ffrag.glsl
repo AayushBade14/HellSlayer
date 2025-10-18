@@ -7,5 +7,8 @@ in vec2 TC;
 uniform sampler2D flash;
 
 void main(){
-  fragColor = texture(flash,TC);;
+  vec4 color = texture(flash,TC);
+  if(color.a < 0.1) 
+    discard;
+  fragColor = color;
 }

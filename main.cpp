@@ -799,6 +799,21 @@ int main(int argc, char* argv[]){
     }
     stbi_image_free(data);
     glBindTexture(GL_TEXTURE_2D,0);
+    
+    unsigned int bloodtex;
+    glGenTextures(1,&bloodtex);
+    glBindTexture(GL_TEXTURE_2D, bloodtex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    data = stbi_load("../blood.png",&width,&height,&nrChannels,0);
+    if(data){
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    }
+    stbi_image_free(data);
+    glBindTexture(GL_TEXTURE_2D,0);
+
 
     float vertices[] = {
       -1.0f,-1.0f,  0.0f,0.0f,
@@ -948,6 +963,8 @@ entities.push_back({"Monkey2","../monkey_crochet.bin",{glm::vec3(3.0f,1.0f,0.0f)
     
       static bool isFlash = false;
       static float flashtime = 0.0f;
+      static Enemy* selenemy = nullptr;
+      static float bloodtime = 0.0f;
 
       if(IsMousePressed(GLFW_MOUSE_BUTTON_LEFT) && shoot_cooldown == 0.0f){
         Bullet b = {{0.7f,-0.3f,-1.5f}, true, 2.0f};
@@ -969,11 +986,17 @@ entities.push_back({"Monkey2","../monkey_crochet.bin",{glm::vec3(3.0f,1.0f,0.0f)
             if(t < closestT){
               closestT = t;
               selected = &enemy;
+              bloodtime = 0.04f;
             }
           }
         }
-        if(selected)
+        if(selected){
           selected->health -= 25.0f;
+          selenemy = selected; 
+        }
+        else{
+          selenemy = nullptr;
+        }
       }
 
       if(isFlash){
@@ -983,8 +1006,35 @@ entities.push_back({"Monkey2","../monkey_crochet.bin",{glm::vec3(3.0f,1.0f,0.0f)
           isFlash = false;
         }
       }
+       
+
+      //std::cout<<"SIZE: "<<enemywave.size()<<std::endl;
+      if(selenemy){
+        bloodtime -= dt;
+        if(bloodtime <= 0.0f){
+          bloodtime = 0.0f;
+          selenemy = nullptr;
+        }
+      }
+
+      if(selenemy){
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, bloodtex);
+        model = glm::mat4(1.0f);
+        model = glm::translate(model,selenemy->transform.position);
+        model = glm::rotate(model, -angle, glm::vec3(0.0f,1.0f,0.0f));
+        model = glm::translate(model, glm::vec3(0.0f,0.0f,1.0f));
+        fshader.Use();
+        fshader.SetValue("model",model);
+        fshader.SetValue("view",view);
+        fshader.SetValue("projection",projection);
+        fshader.SetValue("z",0.0f);
+        vao.Bind();
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        vao.Unbind();
+        glBindTexture(GL_TEXTURE_2D,0);
+      }
       
-      std::cout<<"SIZE: "<<enemywave.size()<<std::endl;
       if(isFlash){
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D,flashtex);
