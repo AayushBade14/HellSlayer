@@ -715,6 +715,12 @@ double mouseY = HEIGHT/2.0f;
 
 Entity* selectedObject = nullptr;
 
+struct Bullet{
+  glm::vec3 position;
+  bool isActive;
+  float ttl = 2.0f;
+};
+
 int main(int argc, char* argv[]){
   glfwInit();
 
@@ -735,9 +741,29 @@ int main(int argc, char* argv[]){
     model.SaveModel(savepath);
   }
   else if(argc==2){
-  
+    
+    float vertices[] = {
+      -1.0f,-1.0f,  0.0f,0.0f,
+      1.0f,-1.0f,   1.0f,0.0f,
+      1.0f,1.0f,    1.0f,1.0f,
+
+      1.0f,1.0f,    1.0f,1.0f,
+      -1.0f,1.0f,   0.0f,1.0f,
+      -1.0f,-1.0f,  0.0f,0.0f
+    };
+    
+    VBO vbo;
+    VAO vao;
+    vao.Bind();
+    vbo.Bind();
+    vbo.AllocateAndFill(sizeof(vertices), vertices, GL_STATIC_DRAW);
+    vao.SetAttrib(0,2,4*sizeof(float),0);
+    vao.SetAttrib(1,2,4*sizeof(float),2*sizeof(float));
+    vao.Unbind();
+
     Shader shader("../vert.glsl", "../frag.glsl");
     Shader gshader("../vert.glsl", "../gizmo_frag.glsl");
+    Shader fshader("../fvert.glsl", "../ffrag.glsl");
 
     Camera camera;
     glfwSetWindowUserPointer(window, &camera);
@@ -745,20 +771,30 @@ int main(int argc, char* argv[]){
     glEnable(GL_DEPTH_TEST);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
-    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     std::vector<Entity> entities;
 entities.push_back({"Floor","../floor_crochet.bin",{glm::vec3(0.0f,-1.0f,0.0f),glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(1.0f)}});
 entities.push_back({"Monkey1","../monkey_crochet.bin",{glm::vec3(0.0f,1.0f,0.0f),glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(1.0f)}});
-entities.push_back({"Monkey2","../monkey_crochet.bin",{glm::vec3(3.0f,1.0f,0.0f),glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(0.1f)}});
+entities.push_back({"Monkey2","../monkey_crochet.bin",{glm::vec3(3.0f,1.0f,0.0f),glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(1.0f)}});
     
-    glm::vec3 origin = {0.0f,-1.0f,0.0f}; 
+    Model gun;
+    gun.LoadModelFromBinary("../glock_crochet.bin");
+
+    Model shell;
+    shell.LoadModelFromBinary("../shell_crochet.bin");
+
+    glm::vec3 origin = {0.0f,-1.0f,0.0f};
+
+    std::vector<Bullet> bullets;
+
     while(!glfwWindowShouldClose(window)){
       glfwPollEvents();
       UpdateWindow();
       UpdateTime();
       ProcessInput();
       camera.UpdateCamera(WIDTH, HEIGHT, dt);
-      
+      static bool isShot = false;
+
       glfwGetCursorPos(window, &mouseX, &mouseY);
       
       glClearColor(0.0f,0.0f,0.0f,1.0f);
@@ -769,20 +805,20 @@ entities.push_back({"Monkey2","../monkey_crochet.bin",{glm::vec3(3.0f,1.0f,0.0f)
       glm::mat4 view = camera.GetViewMatrix();
       glm::mat4 projection = camera.GetProjectionMatrix();
       
-      glm::vec3 rayWorld = GetRayFromMouse(mouseX, mouseY, projection, view);
+      //glm::vec3 rayWorld = GetRayFromMouse(mouseX, mouseY, projection, view);
 
       shader.Use();
       //shader.SetValue("model", model);
       shader.SetValue("view", view);
       shader.SetValue("projection", projection);
-
+      shader.SetValue("isShot",isShot);
       for(auto& entity: entities){  
         shader.SetValue("model",entity.transform.ToMatrix());
         Model en;
         en.LoadModelFromBinary(entity.modelPath);
         en.Draw(shader);
       }
-
+      /*
       if(IsMousePressed(GLFW_MOUSE_BUTTON_LEFT)){
         Entity* selected = nullptr;
         float closestT = FLT_MAX;
@@ -812,6 +848,94 @@ entities.push_back({"Monkey2","../monkey_crochet.bin",{glm::vec3(3.0f,1.0f,0.0f)
         //RenderRotateGizmos(gshader, origin);
       //}
       //else RenderTranslateGizmos(gshader, origin);
+      */
+      glm::vec3 camFront = camera.GetFront();
+      float angle = glm::atan(camFront.z, camFront.x) + glm::radians(90.0f);
+      glm::vec3 gunPos = camera.GetPosition();
+      static float zoff = -1.5f;
+      static float recoil_angle = 0.0f;
+      model = glm::mat4(1.0f);
+      model = glm::translate(model, gunPos);
+      model = glm::rotate(model, -angle, glm::vec3(0.0f,1.0f,0.0f));
+      model = glm::translate(model, glm::vec3(0.5f,-0.3f,zoff));
+      model = glm::rotate(model, glm::radians(recoil_angle), glm::vec3(1.0f,0.0f,0.0f));
+      model = glm::scale(model, glm::vec3(0.3f));
+      shader.Use();
+      shader.SetValue("model",model);
+      shader.SetValue("view",view);
+      shader.SetValue("projection", projection);
+      gun.Draw(shader);
+      
+      static float shoot_cooldown = 0.0f;
+      shoot_cooldown -= dt;
+      if(shoot_cooldown < 0.0f) shoot_cooldown = 0.0f;
+
+      static float recoil_cooldown = 0.0f;
+      recoil_cooldown -= dt;
+      if(recoil_cooldown < 0.0f) recoil_cooldown = 0.0f;
+    
+      static bool isFlash = false;
+      static float flashtime = 0.0f;
+
+      if(IsMousePressed(GLFW_MOUSE_BUTTON_LEFT) && shoot_cooldown == 0.0f){
+        Bullet b = {{0.7f,-0.3f,-1.5f}, true, 2.0f};
+        bullets.push_back(b);
+        shoot_cooldown = 0.3f;
+        zoff += 0.2f;
+        recoil_cooldown = 0.05f;
+        recoil_angle = 10.0f;
+        isShot = true;
+        isFlash = true;
+        flashtime = 0.03f;
+      }
+
+      if(isFlash){
+        flashtime -= dt;
+        if(flashtime <= 0.0f){
+          flashtime = 0.0f;
+          isFlash = false;
+        }
+      }
+      
+      if(isFlash){
+        model = glm::mat4(1.0f);
+        model = glm::translate(model,camera.GetPosition());
+        model = glm::rotate(model, -angle, glm::vec3(0.0f,1.0f,0.0f));
+        model = glm::translate(model, glm::vec3(0.5f,-0.3f,-2.0f));
+        model = glm::scale(model,glm::vec3(0.3f));
+        fshader.Use();
+        fshader.SetValue("model",model);
+        fshader.SetValue("view",view);
+        fshader.SetValue("projection",projection);
+        fshader.SetValue("z",0.0f);
+        vao.Bind();
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        vao.Unbind();
+      }
+      
+      if(recoil_cooldown == 0.0f && shoot_cooldown > 0.0f){
+        zoff = -1.5f;
+        recoil_angle = 0.0f;
+        isShot = false;
+      }
+      for(auto& bullet : bullets){
+        if(bullet.isActive){
+          bullet.position.y -= 9.81f * dt;
+          bullet.position.x += 15.0f * dt;
+          bullet.ttl -= dt;
+          model = glm::mat4(1.0f);
+          model = glm::translate(model, gunPos);
+          model = glm::rotate(model, -angle, glm::vec3(0.0f,1.0f,0.0f));
+          model = glm::translate(model, bullet.position);
+          model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1.0f,0.0f,0.0f));
+          model = glm::scale(model, glm::vec3(0.1f));
+          shader.SetValue("model",model);
+          shell.Draw(shader);
+
+        }
+
+        if(bullet.ttl < 0.0f) bullet.isActive = false;
+      }
       
       glfwSwapBuffers(window);
     }
