@@ -11,6 +11,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <ctime>
+#include <cstdlib>
 #include <unordered_map>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
@@ -722,6 +724,31 @@ struct Bullet{
   float ttl = 2.0f;
 };
 
+struct Enemy{
+  std::string name;
+  std::string modelPath;
+  Transform transform;
+  bool isActive;
+  float health;
+};
+
+
+void generateEnemies(std::vector<Enemy>& enemies, const glm::vec3& campos){
+  std::srand(static_cast<unsigned int>(std::time(nullptr)));
+  
+  int mine = 5;
+  int maxe = 12;
+  int rsize = mine + std::rand() %(maxe - mine + 1);
+
+  for(int i = 0; i < rsize; i++){
+    int min = -14;
+    int max = 14;
+    int rval = min + std::rand() %(max - min + 1);
+    Enemy e = {"enemy","../monkey_crochet.bin",{{campos.x + rval,campos.y,campos.z + rval},{1.0f,0.0f,0.0f,0.0f},{1.0f,1.0f,1.0f}}, true, 100.0f};
+    enemies.push_back(e);
+  }
+}
+
 int main(int argc, char* argv[]){
   glfwInit();
 
@@ -758,6 +785,20 @@ int main(int argc, char* argv[]){
     }
     stbi_image_free(data);
     glBindTexture(GL_TEXTURE_2D,0);
+    
+    unsigned int crosstex;
+    glGenTextures(1,&crosstex);
+    glBindTexture(GL_TEXTURE_2D, crosstex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    data = stbi_load("../crosshair.png",&width,&height,&nrChannels,0);
+    if(data){
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    }
+    stbi_image_free(data);
+    glBindTexture(GL_TEXTURE_2D,0);
 
     float vertices[] = {
       -1.0f,-1.0f,  0.0f,0.0f,
@@ -781,8 +822,13 @@ int main(int argc, char* argv[]){
     Shader shader("../vert.glsl", "../frag.glsl");
     Shader gshader("../vert.glsl", "../gizmo_frag.glsl");
     Shader fshader("../fvert.glsl", "../ffrag.glsl");
+    Shader cshader("../cvert.glsl","../cfrag.glsl");
+  
     fshader.Use();
     fshader.SetValue("flash",0);
+    
+    cshader.Use();
+    cshader.SetValue("crosshair",1);
 
     Camera camera;
     glfwSetWindowUserPointer(window, &camera);
@@ -794,7 +840,7 @@ int main(int argc, char* argv[]){
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     std::vector<Entity> entities;
-entities.push_back({"Floor","../floor_crochet.bin",{glm::vec3(0.0f,-1.0f,0.0f),glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(1.0f)}});
+entities.push_back({"Floor","../floor_crochet.bin",{glm::vec3(0.0f,-1.0f,0.0f),glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(5.0f)}});
 entities.push_back({"Monkey1","../monkey_crochet.bin",{glm::vec3(0.0f,1.0f,0.0f),glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(1.0f)}});
 entities.push_back({"Monkey2","../monkey_crochet.bin",{glm::vec3(3.0f,1.0f,0.0f),glm::quat(1.0f,0.0f,0.0f,0.0f),glm::vec3(1.0f)}});
     
@@ -803,10 +849,15 @@ entities.push_back({"Monkey2","../monkey_crochet.bin",{glm::vec3(3.0f,1.0f,0.0f)
 
     Model shell;
     shell.LoadModelFromBinary("../shell_crochet.bin");
+    
+    Model enemymodel;
+    enemymodel.LoadModelFromBinary("../monkey_crochet.bin");
 
     glm::vec3 origin = {0.0f,-1.0f,0.0f};
 
     std::vector<Bullet> bullets;
+    
+    std::vector<Enemy> enemywave;
 
     while(!glfwWindowShouldClose(window)){
       glfwPollEvents();
@@ -908,6 +959,21 @@ entities.push_back({"Monkey2","../monkey_crochet.bin",{glm::vec3(3.0f,1.0f,0.0f)
         isShot = true;
         isFlash = true;
         flashtime = 0.03f;
+        
+        Enemy* selected = nullptr;
+        float closestT = FLT_MAX;
+        for(auto& enemy: enemywave){
+          float t = 0.0f;
+          if(RayIntersectsSphere(camera.GetPosition(), camera.GetFront(), enemy.transform.position, enemy.transform.scale.x, t)){
+            
+            if(t < closestT){
+              closestT = t;
+              selected = &enemy;
+            }
+          }
+        }
+        if(selected)
+          selected->health -= 25.0f;
       }
 
       if(isFlash){
@@ -918,6 +984,7 @@ entities.push_back({"Monkey2","../monkey_crochet.bin",{glm::vec3(3.0f,1.0f,0.0f)
         }
       }
       
+      std::cout<<"SIZE: "<<enemywave.size()<<std::endl;
       if(isFlash){
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D,flashtex);
@@ -945,7 +1012,7 @@ entities.push_back({"Monkey2","../monkey_crochet.bin",{glm::vec3(3.0f,1.0f,0.0f)
       for(auto& bullet : bullets){
         if(bullet.isActive){
           bullet.position.y -= 9.81f * dt;
-          bullet.position.x += 15.0f * dt;
+          bullet.position.x += 10.0f * dt;
           bullet.ttl -= dt;
           model = glm::mat4(1.0f);
           model = glm::translate(model, gunPos);
@@ -961,6 +1028,44 @@ entities.push_back({"Monkey2","../monkey_crochet.bin",{glm::vec3(3.0f,1.0f,0.0f)
         if(bullet.ttl < 0.0f) bullet.isActive = false;
       }
       
+      if(enemywave.size() == 0){
+        generateEnemies(enemywave, camera.GetPosition());
+      }
+      
+      for(auto& enemy : enemywave){
+        if(enemy.isActive){
+          if(enemy.health <= 0.0f) enemy.isActive = false;
+          int mins = 1;
+          int maxs = 4;
+          int rs = mins + std::rand() %(maxs - mins + 1);
+          glm::vec3 dir = glm::normalize(enemy.transform.position - camera.GetPosition());
+          float eangle = glm::atan(dir.z, dir.x) + glm::radians(90.0f);
+          enemy.transform.position -= dir * float(rs) * dt;
+          enemy.transform.rotation  = glm::angleAxis(-eangle, glm::vec3(0.0f,1.0f,0.0f));
+          shader.Use();
+          shader.SetValue("model",enemy.transform.ToMatrix());
+          shader.SetValue("view",view);
+          shader.SetValue("projection",projection);
+          enemymodel.Draw(shader);
+        }
+      }
+      
+      enemywave.erase(
+        std::remove_if(enemywave.begin(), enemywave.end(),
+                   [](const Enemy& e){ return !(e.isActive); }),
+        enemywave.end()
+      );
+
+      
+
+      glActiveTexture(GL_TEXTURE1);
+      glBindTexture(GL_TEXTURE_2D,crosstex);
+      cshader.Use();
+      vao.Bind();
+      glDrawArrays(GL_TRIANGLES, 0, 6);
+      vao.Unbind();
+      glBindTexture(GL_TEXTURE_2D,0);
+
       glfwSwapBuffers(window);
     }
 
