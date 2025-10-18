@@ -15,6 +15,7 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include "./stb_image.h"
 
 int WIDTH = 1920;
 int HEIGHT = 1013;
@@ -742,6 +743,22 @@ int main(int argc, char* argv[]){
   }
   else if(argc==2){
     
+    stbi_set_flip_vertically_on_load(true);
+    unsigned int flashtex;
+    glGenTextures(1,&flashtex);
+    glBindTexture(GL_TEXTURE_2D, flashtex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    int width,height,nrChannels;
+    unsigned char* data = stbi_load("../flash.png",&width,&height,&nrChannels,0);
+    if(data){
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    }
+    stbi_image_free(data);
+    glBindTexture(GL_TEXTURE_2D,0);
+
     float vertices[] = {
       -1.0f,-1.0f,  0.0f,0.0f,
       1.0f,-1.0f,   1.0f,0.0f,
@@ -764,11 +781,15 @@ int main(int argc, char* argv[]){
     Shader shader("../vert.glsl", "../frag.glsl");
     Shader gshader("../vert.glsl", "../gizmo_frag.glsl");
     Shader fshader("../fvert.glsl", "../ffrag.glsl");
+    fshader.Use();
+    fshader.SetValue("flash",0);
 
     Camera camera;
     glfwSetWindowUserPointer(window, &camera);
   
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -898,6 +919,8 @@ entities.push_back({"Monkey2","../monkey_crochet.bin",{glm::vec3(3.0f,1.0f,0.0f)
       }
       
       if(isFlash){
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D,flashtex);
         model = glm::mat4(1.0f);
         model = glm::translate(model,camera.GetPosition());
         model = glm::rotate(model, -angle, glm::vec3(0.0f,1.0f,0.0f));
@@ -911,6 +934,7 @@ entities.push_back({"Monkey2","../monkey_crochet.bin",{glm::vec3(3.0f,1.0f,0.0f)
         vao.Bind();
         glDrawArrays(GL_TRIANGLES, 0, 6);
         vao.Unbind();
+        glBindTexture(GL_TEXTURE_2D,0);
       }
       
       if(recoil_cooldown == 0.0f && shoot_cooldown > 0.0f){
